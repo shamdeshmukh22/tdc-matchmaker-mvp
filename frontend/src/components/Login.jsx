@@ -37,7 +37,7 @@ export default function Login({ onLogin }) {
           padding: '0.6rem 0.9rem', marginBottom: '1.25rem',
           fontSize: '0.78rem', color: '#c96b8a', textAlign: 'center'
         }}>
-          <strong>Demo:</strong> admin / password123
+          <strong>Login Page </strong><br />
         </div>
 
         {/* ── Form ── */}

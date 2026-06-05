@@ -9,10 +9,10 @@ const matchRoutes = require('./routes/matches');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
+const FrontendURL = process.env.FRONTEND_URL ;
 // CORS and JSON parsing setup
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174',FrontendURL],
   methods: ['GET', 'POST'],
   credentials: true
 }));
