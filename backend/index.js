@@ -43,6 +43,9 @@ app.locals.sentRequests = sentRequests;
 // Customer API endpoints
 
 // Customer endpoints
+app.get("/",function(req,res){
+  res.send("backend is ready");
+})
 app.get('/api/customers', (req, res) => {
   res.json(customers);
 });
