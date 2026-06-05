@@ -1,6 +1,4 @@
-/**
- * TDC API Service — Axios client for backend communication
- */
+// Simple Axios instance for API calls
 import axios from 'axios';
 
 const api = axios.create({
@@ -8,17 +6,26 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-/** Fetch all assigned customers */
+// Get all customers
 export const getCustomers = () => api.get('/customers').then(r => r.data);
 
-/** Fetch single customer detail */
+// Get single customer detail
 export const getCustomer = (id) => api.get(`/customers/${id}`).then(r => r.data);
 
-/** Fetch match suggestions for a customer */
+// Get match suggestions for a customer
 export const getMatches = (id) => api.get(`/customers/${id}/matches`).then(r => r.data);
 
-/** Request AI compatibility review */
+// Get AI compatibility review for two profiles
 export const getAIReview = (client, match) =>
   api.post('/matches/ai-review', { client, match }).then(r => r.data);
 
+// Send a match proposal and add to audit trail
+export const sendMatchProposal = (sentBy, clientId, matchId) =>
+  api.post('/matches/send', { sentBy, clientId, matchId }).then(r => r.data);
+
+// Fetch audit trail of all sent proposals
+export const getAuditTrail = () =>
+  api.get('/matches/audit-trail').then(r => r.data);
+
 export default api;
+

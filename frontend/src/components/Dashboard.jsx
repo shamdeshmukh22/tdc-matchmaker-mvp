@@ -1,22 +1,15 @@
-/**
- * ══════════════════════════════════════════════════════════════
- * TDC Dashboard Component — Matchmaker Command Center
- * ══════════════════════════════════════════════════════════════
- * Main dashboard layout orchestrating:
- *   - Sidebar (client list)
- *   - Main Panel (profile detail + match feed)
- *   - SendMatchModal (send confirmation + AI review)
- *   - Toast notifications
- */
+// Main dashboard that orchestrates clients, match suggestions, and the audit trail
 import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import ProfileDetail from './ProfileDetail';
 import MatchFeed from './MatchFeed';
 import SendMatchModal from './SendMatchModal';
+import SentRequestsDashboard from './SentRequestsDashboard';
 import { getCustomers, getMatches, getAIReview } from '../services/api';
 
 export default function Dashboard({ onLogout }) {
-  // ─── State ─────────────────────────────────────────────────
+  // Component state
+  const [currentView, setCurrentView] = useState('clients');
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -24,17 +17,17 @@ export default function Dashboard({ onLogout }) {
   const [matches, setMatches] = useState([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
 
-  // Modal state
+  // Modal state (for send match + AI review)
   const [modalShow, setModalShow] = useState(false);
   const [modalMatch, setModalMatch] = useState(null);
-  const [modalMode, setModalMode] = useState('send'); // 'send' | 'ai'
+  const [modalMode, setModalMode] = useState('send');
   const [aiReview, setAIReview] = useState(null);
   const [aiLoading, setAILoading] = useState(false);
 
-  // Toast state
+  // Toast notification state
   const [toast, setToast] = useState(null);
 
-  // ─── Load Customers on Mount ───────────────────────────────
+  // Load customer list when component mounts
   useEffect(() => {
     setCustomersLoading(true);
     getCustomers()
@@ -48,14 +41,14 @@ export default function Dashboard({ onLogout }) {
       });
   }, []);
 
-  // ─── Handle Client Selection ───────────────────────────────
+  // When user clicks a client in the sidebar
   const handleSelectClient = useCallback((id) => {
     const customer = customers.find(c => c.id === id);
     setSelectedId(id);
     setSelectedCustomer(customer);
     setMatches([]);
 
-    // Fetch matches for selected customer
+    // Load matches for this customer
     setMatchesLoading(true);
     getMatches(id)
       .then(data => {
@@ -68,7 +61,7 @@ export default function Dashboard({ onLogout }) {
       });
   }, [customers]);
 
-  // ─── Handle Send Match ─────────────────────────────────────
+  // Show modal to send a match
   const handleSendMatch = useCallback((match) => {
     setModalMatch(match);
     setModalMode('send');
@@ -76,7 +69,7 @@ export default function Dashboard({ onLogout }) {
     setModalShow(true);
   }, []);
 
-  // ─── Handle AI Review ──────────────────────────────────────
+  // Get AI review for selected match
   const handleAIReview = useCallback((match) => {
     setModalMatch(match);
     setModalMode('ai');
@@ -95,21 +88,21 @@ export default function Dashboard({ onLogout }) {
       });
   }, [selectedCustomer]);
 
-  // ─── Handle Confirm Send ───────────────────────────────────
+  // Show notification after sending
   const handleConfirmSend = useCallback((match) => {
     showToast(`Match invite sent to ${selectedCustomer?.firstName} about ${match.firstName} ${match.lastName}`);
   }, [selectedCustomer]);
 
-  // ─── Toast Helper ──────────────────────────────────────────
+  // Show temporary toast notification
   const showToast = (message) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ─── Render ────────────────────────────────────────────────
+  // Render main component
   return (
     <div className="tdc-dashboard">
-      {/* ─── Top Bar ──────────────────────────────────────── */}
+      {/* Header bar with logout */}
       <header className="tdc-topbar">
         <div className="tdc-logo">
           <i className="bi bi-heart-pulse-fill me-2"></i>
@@ -127,9 +120,25 @@ export default function Dashboard({ onLogout }) {
         </div>
       </header>
 
-      {/* ─── Body: Sidebar + Main ─────────────────────────── */}
+      {/* Tabs to switch between views */}
+      <div className="tdc-nav-tabs">
+        <button
+          className={`nav-tab ${currentView === 'clients' ? 'active' : ''}`}
+          onClick={() => setCurrentView('clients')}
+        >
+          <i className="bi bi-person-lines-fill me-2"></i>My Clients
+        </button>
+        <button
+          className={`nav-tab ${currentView === 'audit-trail' ? 'active' : ''}`}
+          onClick={() => setCurrentView('audit-trail')}
+        >
+          <i className="bi bi-send-check me-2"></i>Sent History
+        </button>
+      </div>
+
+      {/* Main content area */}
+      {currentView === 'clients' ? (
       <div className="tdc-body">
-        {/* Sidebar */}
         <Sidebar
           customers={customers}
           selectedId={selectedId}
@@ -137,7 +146,6 @@ export default function Dashboard({ onLogout }) {
           loading={customersLoading}
         />
 
-        {/* Main Panel */}
         <main className="tdc-main">
           {!selectedCustomer ? (
             <div className="tdc-empty-state">
@@ -146,10 +154,8 @@ export default function Dashboard({ onLogout }) {
             </div>
           ) : (
             <div className="container-fluid p-0">
-              {/* Profile Detail */}
               <ProfileDetail customer={selectedCustomer} />
 
-              {/* Match Suggestions */}
               <MatchFeed
                 matches={matches}
                 loading={matchesLoading}
@@ -160,8 +166,11 @@ export default function Dashboard({ onLogout }) {
           )}
         </main>
       </div>
+      ) : (
+        <SentRequestsDashboard />
+      )}
 
-      {/* ─── Modal ────────────────────────────────────────── */}
+      {/* Modal for sending match or showing AI review */}
       <SendMatchModal
         show={modalShow}
         match={modalMatch}
@@ -173,7 +182,7 @@ export default function Dashboard({ onLogout }) {
         onConfirmSend={handleConfirmSend}
       />
 
-      {/* ─── Toast Notification ───────────────────────────── */}
+      {/* Toast notification at bottom */}
       {toast && (
         <div className="tdc-toast" id="toast-notification">
           <i className="bi bi-check-circle-fill"></i>

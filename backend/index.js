@@ -1,11 +1,4 @@
-/**
- * ──────────────────────────────────────────────────────────────
- * TDC Backend — Express Server Entry Point
- * ──────────────────────────────────────────────────────────────
- * Serves API endpoints for the Matchmaker Command Center.
- * Loads customer & profile data from local JSON mock database.
- * ──────────────────────────────────────────────────────────────
- */
+// TDC backend - simple Express server that serves matchmaker data via API
 
 require('dotenv').config();
 const express = require('express');
@@ -17,9 +10,7 @@ const matchRoutes = require('./routes/matches');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── Middleware ──────────────────────────────────────────────
-
-// Enable CORS for the React dev server
+// CORS and JSON parsing setup
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
   methods: ['GET', 'POST'],
@@ -29,16 +20,27 @@ app.use(cors({
 // Parse JSON request bodies
 app.use(express.json());
 
-// ─── Static Data ─────────────────────────────────────────────
+// Load customer & profile data from JSON files
 
 const customers = require('./data/customers.json');
 const profiles = require('./data/profiles.json');
 
-// Make data available to route handlers via app.locals
+// Load sent match log (for the new audit trail feature)
+const sentRequestsPath = path.join(__dirname, 'data', 'sentRequests.json');
+let sentRequests = [];
+try {
+  sentRequests = require(sentRequestsPath);
+} catch (err) {
+  console.warn('⚠️  sentRequests.json not found — starting with empty audit trail');
+  sentRequests = [];
+}
+
+// Make this data accessible to route handlers
 app.locals.customers = customers;
 app.locals.profiles = profiles;
+app.locals.sentRequests = sentRequests;
 
-// ─── Routes ──────────────────────────────────────────────────
+// Customer API endpoints
 
 // Customer endpoints
 app.get('/api/customers', (req, res) => {
@@ -56,7 +58,7 @@ app.get('/api/customers/:id', (req, res) => {
 // Match-related endpoints
 app.use('/api', matchRoutes);
 
-// ─── Health Check ────────────────────────────────────────────
+// Simple health check endpoint
 
 app.get('/api/health', (req, res) => {
   res.json({

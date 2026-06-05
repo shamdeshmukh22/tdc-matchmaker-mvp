@@ -1,29 +1,17 @@
-/**
- * ──────────────────────────────────────────────────────────────
- * TDC Match Logic Router
- * ──────────────────────────────────────────────────────────────
- * Implements gender-specific matchmaking algorithms and
- * OpenAI-powered compatibility review.
- *
- * Endpoints:
- *   GET  /api/customers/:id/matches   → Algorithmic matches
- *   POST /api/matches/ai-review       → AI compatibility review
- * ──────────────────────────────────────────────────────────────
- */
+// Matchmaking logic - scores potential matches based on compatibility factors like age, religion, hobbies, etc
 
 const express = require('express');
 const router = express.Router();
-const OpenAI = require('openai');
+const Groq = require('groq-sdk');
 
-// ─── OpenAI Client Setup ─────────────────────────────────────
+// Initialize Groq client if API key is available
 
-let openai = null;
-if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let groq = null;
+if (process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'your_groq_api_key_here') {
+  groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 }
 
-// ─── Helper: Profession Categories ──────────────────────────
-
+// Map professions to broader categories (tech, finance, healthcare, etc)
 const professionCategories = {
   'Tech': ['Software Engineer', 'Data Scientist', 'Product Manager', 'UX Designer', 'Business Analyst'],
   'Finance': ['Investment Banker', 'Chartered Accountant', 'Consultant'],
@@ -34,9 +22,7 @@ const professionCategories = {
   'Engineering': ['Civil Engineer']
 };
 
-/**
- * Get the profession category for a given profession string
- */
+// Find which category a profession belongs to
 function getProfessionCategory(profession) {
   for (const [category, profs] of Object.entries(professionCategories)) {
     if (profs.includes(profession)) return category;
@@ -44,18 +30,13 @@ function getProfessionCategory(profession) {
   return 'Other';
 }
 
-/**
- * Count overlapping values between two arrays
- */
+// Count how many items appear in both arrays (useful for shared hobbies, languages, etc)
 function overlapCount(arr1, arr2) {
   if (!arr1 || !arr2) return 0;
   return arr1.filter(item => arr2.includes(item)).length;
 }
 
-// ══════════════════════════════════════════════════════════════
-// ENDPOINT: GET /api/customers/:id/matches
-// Gender-specific matchmaking with scoring
-// ══════════════════════════════════════════════════════════════
+// Get match suggestions for a customer based on gender-specific filtering rules
 
 router.get('/customers/:id/matches', (req, res) => {
   const { customers, profiles } = req.app.locals;
@@ -68,9 +49,9 @@ router.get('/customers/:id/matches', (req, res) => {
   let matches = [];
 
   if (customer.gender === 'Male') {
-    // ─── Male Client Matching Rules ────────────────────────
-    // Filter for women who are: younger, shorter, lower income,
-    // and have matching views on wanting children.
+    // Different rules for male vs female clients
+    // Males get younger, shorter women with lower income
+    // Females get guys from similar profession, good height, right mindset
     matches = profiles
       .filter(p => p.gender === 'Female')
       .filter(p => {
@@ -83,8 +64,8 @@ router.get('/customers/:id/matches', (req, res) => {
         return isYounger && isShorter && isLowerIncome && kidsMatch;
       })
       .map(p => {
-        // Calculate a compatibility score for ranking
-        let score = 50; // Base score for passing all filters
+        // Score based on compatibility factors
+        let score = 50; // Start at 50 and add bonuses for matches
 
         // Religion match bonus
         if (p.religion === customer.religion) score += 15;
@@ -117,11 +98,8 @@ router.get('/customers/:id/matches', (req, res) => {
       })
       .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
       .slice(0, 15); // Top 15 matches
-
   } else {
-    // ─── Female Client Matching Rules ──────────────────────
-    // Score based on: profession category overlap, relocation
-    // openness, shared life values, and height preference.
+    // For female clients, score based on profession match, height, relocation willingness, and values
     matches = profiles
       .filter(p => p.gender === 'Male')
       .map(p => {
@@ -184,10 +162,7 @@ router.get('/customers/:id/matches', (req, res) => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════
-// ENDPOINT: POST /api/matches/ai-review
-// OpenAI-powered compatibility analysis
-// ══════════════════════════════════════════════════════════════
+// AI Compatibility Review
 
 router.post('/matches/ai-review', async (req, res) => {
   const { client, match } = req.body;
@@ -196,17 +171,17 @@ router.post('/matches/ai-review', async (req, res) => {
     return res.status(400).json({ error: 'Both client and match profiles are required' });
   }
 
-  // ─── Fallback if OpenAI is not configured ────────────────
-  if (!openai) {
-    console.log('⚠️  OpenAI not configured — returning mock AI review');
+  // Use Groq if available, otherwise send mock review
+  if (!groq) {
+    console.log('⚠️  Groq not configured — returning mock AI review');
     return res.json(generateMockReview(client, match));
   }
 
   try {
     const prompt = buildAIPrompt(client, match);
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const completion = await groq.chat.completions.create({
+      model: 'mixtral-8x7b-32768',
       messages: [
         {
           role: 'system',
@@ -226,14 +201,13 @@ router.post('/matches/ai-review', async (req, res) => {
     res.json(result);
 
   } catch (error) {
-    console.error('OpenAI API Error:', error.message);
+    console.error('Groq API Error:', error.message);
     // Graceful fallback to mock review on API failure
     res.json(generateMockReview(client, match));
   }
 });
 
-// ─── AI Prompt Builder ───────────────────────────────────────
-
+// Build the AI prompt with both profiles
 function buildAIPrompt(client, match) {
   return `
 Analyze the compatibility between these two profiles for an Indian matrimonial match.
@@ -276,10 +250,11 @@ Respond with a JSON object containing:
 }`;
 }
 
-// ─── Mock Review Generator (Fallback) ───────────────────────
+// Generate a mock review when OpenAI isn't available or fails
 
+// Generate a mock review when OpenAI isn't available or fails
 function generateMockReview(client, match) {
-  // Calculate a basic compatibility score
+  // Calculate a basic compatibility score with shared attributes as bonuses with shared attributes as bonuses
   let score = 60;
   if (client.religion === match.religion) score += 10;
   if (client.familyValues === match.familyValues) score += 8;
@@ -306,5 +281,76 @@ function generateMockReview(client, match) {
     icebreaker: icebreakers[Math.floor(Math.random() * icebreakers.length)]
   };
 }
+
+// ══════════════════════════════════════════════════════════════
+// ENDPOINT: POST /api/matches/send
+// Log a sent match proposal to the audit trail
+// ══════════════════════════════════════════════════════════════
+
+router.post('/matches/send', (req, res) => {
+  const { sentBy, clientId, matchId } = req.body;
+
+  // Validate required fields
+  if (!sentBy || !clientId || !matchId) {
+    return res.status(400).json({ 
+      error: 'Missing required fields: sentBy, clientId, matchId' 
+    });
+  }
+
+  const { customers, profiles, sentRequests } = req.app.locals;
+
+  // Find customer and profile
+  const client = customers.find(c => c.id === clientId);
+  if (!client) {
+    return res.status(404).json({ error: `Client with ID ${clientId} not found` });
+  }
+
+  const match = profiles.find(p => p.id === matchId);
+  if (!match) {
+    return res.status(404).json({ error: `Match profile with ID ${matchId} not found` });
+  }
+
+  // Generate unique request ID (REQ-XXXX format with random 4-digit number)
+  const generateRequestId = () => {
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const requestId = `REQ-${randomNum}`;
+    const exists = sentRequests.some(req => req.requestId === requestId);
+    return exists ? generateRequestId() : requestId; // Recurse until unique
+  };
+
+  // Create new audit trail entry with client & match info
+  const newRequest = {
+    requestId: generateRequestId(),
+    sentBy: sentBy,
+    clientId: clientId,
+    clientName: `${client.firstName} ${client.lastName}`,
+    matchId: matchId,
+    matchName: `${match.firstName} ${match.lastName}`,
+    dateSent: new Date().toISOString(),
+    statusTag: 'Awaiting Family Review' // Default status - all new requests start here
+  };
+
+  // Add to front of array so newest shows first
+  sentRequests.unshift(newRequest);
+
+  // Return the newly created request record
+  res.status(201).json({
+    success: true,
+    message: `Match proposal logged successfully for ${client.firstName} → ${match.firstName}`,
+    request: newRequest
+  });
+});
+
+// Get all sent match proposals from the audit trail
+router.get('/matches/audit-trail', (req, res) => {
+  const { sentRequests } = req.app.locals;
+
+  // Return complete audit trail
+  res.json({
+    success: true,
+    count: sentRequests.length,
+    requests: sentRequests
+  });
+});
 
 module.exports = router;
