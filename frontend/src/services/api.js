@@ -5,10 +5,6 @@ const api = axios.create({
   baseURL: VITE_API_URL,
   headers: { 'Content-Type': 'application/json' }
 });
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  headers: { 'Content-Type': 'application/json' }
-});
 
 // Get all customers
 export const getCustomers = () => api.get('/customers').then(r => r.data);
