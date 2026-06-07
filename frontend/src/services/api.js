@@ -5,7 +5,7 @@ const api = axios.create({
   baseURL: "https://tdc-matchmaker-mvp.onrender.com/api",
   headers: { 'Content-Type': 'application/json' }
 });
-
+console.log("API base URL:", import.meta.env.VITE_API_URL);
 // Get all customers
 export const getCustomers = () => api.get('/customers').then(r => r.data);
 
