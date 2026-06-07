@@ -20,8 +20,8 @@ export const getAIReview = (client, match) =>
   api.post('/matches/ai-review', { client, match }).then(r => r.data);
 
 // Send a match proposal and add to audit trail
-export const sendMatchProposal = (sentBy, clientId, matchId) =>
-  api.post('/matches/send', { sentBy, clientId, matchId }).then(r => r.data);
+export const sendMatchProposal = (data) =>
+  api.post('/matches/send', data).then(r => r.data);
 
 // Fetch audit trail of all sent proposals
 export const getAuditTrail = () =>

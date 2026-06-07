@@ -3,7 +3,10 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
+const fs = require('fs');
+const path = require('path');
 
+const filePath = path.join(__dirname, '../data/sentRequests.json');
 // Initialize Groq client if API key is available
 
 let groq = null;
@@ -282,64 +285,11 @@ function generateMockReview(client, match) {
   };
 }
 
-// ══════════════════════════════════════════════════════════════
 // ENDPOINT: POST /api/matches/send
 // Log a sent match proposal to the audit trail
-// ══════════════════════════════════════════════════════════════
 
-router.post('/matches/send', (req, res) => {
-  const { sentBy, clientId, matchId } = req.body;
 
-  // Validate required fields
-  if (!sentBy || !clientId || !matchId) {
-    return res.status(400).json({ 
-      error: 'Missing required fields: sentBy, clientId, matchId' 
-    });
-  }
 
-  const { customers, profiles, sentRequests } = req.app.locals;
-
-  // Find customer and profile
-  const client = customers.find(c => c.id === clientId);
-  if (!client) {
-    return res.status(404).json({ error: `Client with ID ${clientId} not found` });
-  }
-
-  const match = profiles.find(p => p.id === matchId);
-  if (!match) {
-    return res.status(404).json({ error: `Match profile with ID ${matchId} not found` });
-  }
-
-  // Generate unique request ID (REQ-XXXX format with random 4-digit number)
-  const generateRequestId = () => {
-    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const requestId = `REQ-${randomNum}`;
-    const exists = sentRequests.some(req => req.requestId === requestId);
-    return exists ? generateRequestId() : requestId; // Recurse until unique
-  };
-
-  // Create new audit trail entry with client & match info
-  const newRequest = {
-    requestId: generateRequestId(),
-    sentBy: sentBy,
-    clientId: clientId,
-    clientName: `${client.firstName} ${client.lastName}`,
-    matchId: matchId,
-    matchName: `${match.firstName} ${match.lastName}`,
-    dateSent: new Date().toISOString(),
-    statusTag: 'Awaiting Family Review' // Default status - all new requests start here
-  };
-
-  // Add to front of array so newest shows first
-  sentRequests.unshift(newRequest);
-
-  // Return the newly created request record
-  res.status(201).json({
-    success: true,
-    message: `Match proposal logged successfully for ${client.firstName} → ${match.firstName}`,
-    request: newRequest
-  });
-});
 
 // Get all sent match proposals from the audit trail
 router.get('/matches/audit-trail', (req, res) => {
@@ -351,6 +301,48 @@ router.get('/matches/audit-trail', (req, res) => {
     count: sentRequests.length,
     requests: sentRequests
   });
+});
+
+
+
+router.post('/matches/send', (req, res) => {
+  const { sentBy, clientId, clientName, matchId, matchName } = req.body;
+
+  // 1. Validate existence
+  const { customers, profiles } = req.app.locals;
+  const client = customers.find(c => c.id === clientId);
+  const match = profiles.find(p => p.id === matchId);
+
+  if (!client || !match) {
+    return res.status(404).json({ error: "Client or Match profile not found" });
+  }
+
+  try {
+    // 2. Load and Update
+    const rawData = fs.readFileSync(filePath, 'utf8');
+    const requests = JSON.parse(rawData);
+
+    const newRequest = {
+      requestId: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      sentBy,
+      clientId,
+      clientName,
+      matchId,
+      matchName,
+      dateSent: new Date().toISOString(),
+      statusTag: 'Awaiting Family Review'
+    };
+
+    requests.unshift(newRequest); // Add to top
+    
+    // 3. Save
+    fs.writeFileSync(filePath, JSON.stringify(requests, null, 2));
+    req.app.locals.sentRequests = requests; // Update memory
+
+    res.status(201).json({ success: true, request: newRequest });
+  } catch (err) {
+    res.status(500).json({ error: "Server error while saving" });
+  }
 });
 
 module.exports = router;

@@ -230,6 +230,7 @@ body {
   border-radius: 8px; cursor: pointer;
   transition: var(--t); font-family: var(--font);
 }
+
 .btn-logout:hover { border-color: var(--rose); color: var(--rose); }
 
 .tdc-body { flex: 1; display: flex; overflow: hidden; }
@@ -627,4 +628,14 @@ body {
   .tdc-sidebar { width: 100%; min-width: 100%; height: auto; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
   .tdc-main { height: auto; }
   .tdc-login-card { padding: 2rem 1.5rem; }
+}
+
+@media (max-width: 576px) {
+  .tdc-logo {
+    font-size: 1rem;
+  }
+
+  #matchmaker{
+    display: none;
+  }
 }

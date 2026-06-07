@@ -109,7 +109,7 @@ export default function Dashboard({ onLogout }) {
           The Date Crew
         </div>
         <div className="tdc-user-info">
-          <span>Matchmaker Console</span>
+          <span id="matchmaker">Matchmaker Console</span>
           <span style={{ color: 'var(--border)' }}>|</span>
           <span style={{ color: 'var(--rose)', fontWeight: 600 }}>
             <i className="bi bi-person-circle me-1"></i>Admin

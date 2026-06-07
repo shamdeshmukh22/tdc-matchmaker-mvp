@@ -1,15 +1,35 @@
 import { useState } from 'react';
+import { sendMatchProposal } from '../services/api';
 
 export default function SendMatchModal({ show, match, client, aiReview, aiLoading, onClose, onConfirmSend, mode }) {
   const [sent, setSent] = useState(false);
 
   if (!show || !match) return null;
 
-  const handleSend = () => {
-    setSent(true);
-    onConfirmSend(match);
-    setTimeout(() => { setSent(false); onClose(); }, 1600);
-  };
+ const handleSend = async () => {
+  try {
+    setSent(true); // Immediate feedback to the user
+    
+    // Call the API and wait for confirmation
+    await sendMatchProposal({
+      sentBy: "Admin",
+      clientId: client.id,
+     clientName: `${client.firstName} ${client.lastName}`,
+      matchId: match.id,
+      matchName: `${match.firstName} ${match.lastName}`
+    });
+    
+    // Success path
+    setTimeout(() => { 
+      setSent(false); 
+      onClose(); 
+    }, 1600);
+  } catch (err) {
+    setSent(false); // Reset state so the user can try again if it fails
+    console.error("Failed to send proposal", err);
+    alert("Could not send the match proposal. Please try again.");
+  }
+};
 
   return (
     <div className="tdc-modal-backdrop" onClick={onClose}>

@@ -89,7 +89,7 @@ export default function Login({ onLogin }) {
                 Signing in…
               </span>
             ) : (
-              <span><i className="bi bi-arrow-right-circle me-2"></i>Sign In</span>
+              <span>Sign In <i className="bi bi-arrow-right-circle me-2"></i></span>
             )}
           </button>
 
